@@ -1,13 +1,15 @@
 # Reproduction of Issue #3256
 
 [Issue #3256](https://github.com/dotansimha/graphql-yoga/issues/3256)
-identified a bug that can lead to the field ordering in a Yoga response
-failing to match the field ordering in the request.
+reports that a Yoga response can return fields in an order that fails to match
+the request's field order.
+
+This repository provides a reproduction of the issue and identifies its cause.
 
 ## Cause
 
-The cause of the mis-ordering is the way in which the `@graphql-tools/executor`
-package "transforms a JS object `Record<string, Promise<T>>` into
+Response fields with async resolvers can become mis-ordered when the `@graphql-tools/executor`
+executor "transforms a JS object `Record<string, Promise<T>>` into
 a `Promise<Record<string, T>>`". The `object` passed into `promiseForObject` has
 properly ordered keys, but those keys are inserted into `resolvedObject` in the
 [order in which their promise values are resolved](https://github.com/ardatan/graphql-tools/blob/master/packages/executor/src/execution/promiseForObject.ts#L23).
@@ -18,8 +20,8 @@ The bug was introduced in [commit `882440487551abcb5bdd4f626f3b56ac2e886f11`](ht
 
 ### Single Async Field Resolver
 
-The bug can be reproduced most simply with a simple schema with only a single
-asynchronous field resolver.
+The bug can be reproduced with a simple schema containing one or more synchronous
+field resolvers and a single asynchronous field resolver.
 
 Run `npm run single-async` and execute the following query:
 
@@ -40,8 +42,8 @@ resolved field) will always be returned last.
 
 ### Staggered Async Field Resolvers
 
-Confirm that the order of fields in the response matches the order of promise
-resolution by running `npm run staggered-async`, running the same query, and
-confirming that, regardless of the order in which the fields are requested, the
+To see that the order of fields in the response matches the order of promise
+resolution, run `npm run staggered-async`, issue the same query, and
+confirm that, regardless of the order in which the fields are requested, the
 response will always order them from shortest delay (`fifth`) to longest delay
 (`first`).
